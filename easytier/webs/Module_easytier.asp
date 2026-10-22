@@ -27,30 +27,164 @@
 <script language="JavaScript" type="text/javascript" src="/res/softcenter.js"></script>
 <style>
 a:focus { outline: none; }
-.SimpleNote { padding: 6px 10px; line-height: 22px; background: rgba(0,0,0,0.25); border-radius: 4px; margin-bottom: 12px; }
+.SimpleNote { padding: 8px 12px; line-height: 24px; background: rgba(0,0,0,0.3); border-radius: 4px; margin-bottom: 12px; white-space: nowrap; overflow: hidden; }
 .SimpleNote a { color: #00ffe4; text-decoration: none; }
 .SimpleNote a:hover { text-decoration: underline; }
 i { color: #FC0; font-style: normal; }
 .loadingBarBlock { width: 750px; }
 .popup_bar_bg_ks { position: fixed; margin: auto; top: 0; left: 0; width: 100%; height: 100%; z-index: 999; filter: alpha(opacity=90); visibility: hidden; background: rgba(20, 24, 28, 0.88); }
 .FormTitle em { color: #00ffe4; font-style: normal; }
-.FormTable th { width: 28%; font-size: 13px; font-weight: normal; }
-.FormTable td { font-size: 13px; }
+.FormTable th { width: 22% !important; font-size: 13px; font-weight: normal; white-space: nowrap; }
+.FormTable td { font-size: 13px; white-space: nowrap; }
 .formfonttitle { font-family: Roboto-Light, "Microsoft JhengHei"; font-size: 18px; margin-left: 5px; font-weight: bold; }
 .FormTitle, .FormTable th, .FormTable td { font-family: Roboto-Light, "Microsoft JhengHei"; }
-.ks_btn { padding: 3px 10px; background: #2f3a3d; border: 1px solid #5a6a6f; color: #fff; border-radius: 3px; cursor: pointer; text-decoration: none; display: inline-block; font-size: 12px; }
-.ks_btn:hover { background: #3f4e53; color: #00ffe4; border-color: #00ffe4; }
-.ks_btn_danger { background: #5c1e24; border-color: #8c2b34; }
-.ks_btn_danger:hover { background: #7c2830; color: #ff8080; border-color: #ff4d4d; }
-.status_badge { display: inline-block; padding: 4px 12px; border-radius: 3px; font-weight: bold; font-size: 13px; letter-spacing: 0.5px; }
-.status_running { background: #164e32; color: #4ade80; border: 1px solid #22c55e; }
-.status_stopped { background: #4c1d24; color: #f87171; border: 1px solid #ef4444; }
-.tab_btn { padding: 6px 16px; margin-right: 4px; background: #1f2528; border: 1px solid #434d52; border-bottom: none; color: #a0aeb5; cursor: pointer; border-radius: 4px 4px 0 0; font-size: 13px; display: inline-block; }
-.tab_btn_active { background: #2b353a; color: #00ffe4; border-color: #00ffe4; font-weight: bold; }
-.tab_container { border: 1px solid #434d52; background: #2b353a; padding: 12px; border-radius: 0 4px 4px 4px; }
-.cli_terminal { width: 98%; height: 280px; background: #0c1012; color: #38ef7d; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; line-height: 18px; border: 1px solid #1f2d33; padding: 8px; border-radius: 4px; resize: vertical; outline: none; }
-.input_text { background: #181f22; border: 1px solid #445258; color: #fff; padding: 4px 8px; border-radius: 3px; font-family: 'Consolas', monospace; }
-.input_text:focus { border-color: #00ffe4; outline: none; }
+
+/* ================= 按钮全面优化: 彻底覆写 softcenter.css width: 14% 限制 ================= */
+.et_btn, .ks_btn {
+    display: inline-block !important;
+    width: auto !important;
+    min-width: unset !important;
+    max-width: none !important;
+    height: 28px !important;
+    line-height: 26px !important;
+    padding: 0 12px !important;
+    margin: 0 6px 0 0 !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    box-sizing: border-box !important;
+    font-family: Roboto-Light, "Microsoft JhengHei", sans-serif !important;
+    font-size: 12px !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    cursor: pointer !important;
+    border-radius: 4px !important;
+    border: 1px solid #4a5a60 !important;
+    background: #252e32 !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+.et_btn:hover, .ks_btn:hover {
+    background: #344247 !important;
+    color: #00ffe4 !important;
+    border-color: #00ffe4 !important;
+    text-decoration: none !important;
+}
+.et_btn_danger, .ks_btn_danger {
+    background: #5c1e24 !important;
+    border-color: #8c2b34 !important;
+    color: #ffcccc !important;
+}
+.et_btn_danger:hover, .ks_btn_danger:hover {
+    background: #7c2830 !important;
+    color: #ffffff !important;
+    border-color: #ff4d4d !important;
+}
+.et_btn_primary {
+    background: #8b0018 !important;
+    border-color: #cf0a2c !important;
+    color: #ffffff !important;
+}
+.et_btn_primary:hover {
+    background: #ad001e !important;
+    border-color: #ff2a4b !important;
+    color: #ffffff !important;
+}
+
+/* 按钮操作工具栏 (强制单行不换行) */
+.btn_toolbar {
+    margin-bottom: 8px;
+    white-space: nowrap !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    line-height: 32px;
+}
+
+/* 状态徽章 */
+.status_badge {
+    display: inline-block !important;
+    width: auto !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+    padding: 3px 10px !important;
+    border-radius: 4px !important;
+    font-weight: bold !important;
+    font-size: 13px !important;
+    letter-spacing: 0.5px !important;
+    vertical-align: middle !important;
+    line-height: 20px !important;
+    box-sizing: border-box !important;
+}
+.status_running { background: #164e32 !important; color: #4ade80 !important; border: 1px solid #22c55e !important; }
+.status_stopped { background: #4c1d24 !important; color: #f87171 !important; border: 1px solid #ef4444 !important; }
+.status_checking { background: #4d3a0e !important; color: #facc15 !important; border: 1px solid #eab308 !important; }
+
+/* 标签页导航 */
+.tab_btn_bar {
+    margin-top: 15px;
+    white-space: nowrap !important;
+    overflow: hidden;
+}
+.tab_btn {
+    padding: 7px 18px !important;
+    margin-right: 4px !important;
+    background: #1f2528 !important;
+    border: 1px solid #434d52 !important;
+    border-bottom: none !important;
+    color: #a0aeb5 !important;
+    cursor: pointer !important;
+    border-radius: 4px 4px 0 0 !important;
+    font-size: 13px !important;
+    display: inline-block !important;
+    white-space: nowrap !important;
+    vertical-align: bottom !important;
+}
+.tab_btn_active {
+    background: #2b353a !important;
+    color: #00ffe4 !important;
+    border-color: #00ffe4 !important;
+    font-weight: bold !important;
+}
+.tab_container {
+    border: 1px solid #434d52;
+    background: #2b353a;
+    padding: 12px;
+    border-radius: 0 4px 4px 4px;
+}
+
+/* 终端输出框 */
+.cli_terminal {
+    width: 98% !important;
+    height: 320px !important;
+    background: #0c1012 !important;
+    color: #38ef7d !important;
+    font-family: 'Consolas', 'Courier New', monospace !important;
+    font-size: 12px !important;
+    line-height: 18px !important;
+    border: 1px solid #1f2d33 !important;
+    padding: 8px !important;
+    border-radius: 4px !important;
+    resize: vertical !important;
+    outline: none !important;
+    box-sizing: border-box !important;
+}
+
+/* 单行输入框 */
+.input_text {
+    background: #181f22 !important;
+    border: 1px solid #445258 !important;
+    color: #fff !important;
+    padding: 4px 8px !important;
+    border-radius: 3px !important;
+    font-family: 'Consolas', monospace !important;
+    box-sizing: border-box !important;
+    vertical-align: middle !important;
+}
+.input_text:focus { border-color: #00ffe4 !important; outline: none !important; }
+.inline_tip { color: #a0aeb5; margin-left: 8px; font-size: 12px; vertical-align: middle; white-space: nowrap; }
+.inline_warn { color: #FC0; margin-left: 8px; font-size: 12px; vertical-align: middle; white-space: nowrap; }
+.inline_highlight { color: #00ffe4; margin-left: 8px; font-size: 12px; vertical-align: middle; white-space: nowrap; }
 </style>
 <script type="text/javascript">
 var dbus = {};
@@ -203,12 +337,12 @@ function check_status() {
                 badge.className = "status_badge status_running";
                 badge.innerHTML = "● " + text;
                 E("btn_start").style.display = "none";
-                E("btn_stop").style.display = "";
-                E("btn_restart").style.display = "";
+                E("btn_stop").style.display = "inline-block";
+                E("btn_restart").style.display = "inline-block";
             } else {
                 badge.className = "status_badge status_stopped";
                 badge.innerHTML = "○ 服务已停止";
-                E("btn_start").style.display = "";
+                E("btn_start").style.display = "inline-block";
                 E("btn_stop").style.display = "none";
                 E("btn_restart").style.display = "none";
             }
@@ -374,6 +508,12 @@ function generate_toml_from_simple() {
     E("mode_custom").checked = true;
     toggle_mode_display("custom");
     alert("已将简易配置转换为 TOML 格式！您可以进行自由编辑与深度定制。");
+}
+
+function clear_toml_content() {
+    if (confirm("确定要清空 TOML 配置文件内容吗？")) {
+        E("easytier_config_content").value = "";
+    }
 }
 
 function fetch_cli_info(type) {
@@ -545,34 +685,35 @@ function count_down_close() {
                                         </div>
                                         <div style="margin: 10px 0 12px 5px;" class="splitLine"></div>
 
+                                        <!-- 顶部链接栏: 单行紧凑显示 -->
                                         <div class="SimpleNote">
-                                            <a href="https://github.com/EasyTier/EasyTier" target="_blank"><em>EasyTier</em></a> 是一款基于 Rust 打造的简单、安全、去中心化的全网状 (Full-Mesh) 内网穿透 VPN。<br />
-                                            <span><a href="https://github.com/EasyTier/EasyTier" target="_blank" class="ks_btn">项目官网</a></span>
-                                            <span><a href="https://easytier.cn/web/index.html#/config_generator" target="_blank" class="ks_btn" style="margin-left:5px;">官方配置生成器</a></span>
-                                            <span><a href="javascript:void(0);" onclick="get_log(1)" class="ks_btn" style="margin-left:5px;">查看插件日志</a></span>
-                                            <span><a href="javascript:void(0);" onclick="clear_runtime_log()" class="ks_btn ks_btn_danger" style="margin-left:5px;">清空运行日志</a></span>
+                                            <span style="margin-right:12px;"><a href="https://github.com/EasyTier/EasyTier" target="_blank"><em>EasyTier</em></a> 是基于 Rust 打造的安全去中心化 Full-Mesh 组网方案。</span>
+                                            <a href="https://github.com/EasyTier/EasyTier" target="_blank" class="et_btn">项目官网 ↗</a>
+                                            <a href="https://easytier.cn/web/index.html#/config_generator" target="_blank" class="et_btn">官方配置生成器 ↗</a>
+                                            <a href="javascript:void(0);" onclick="get_log(1)" class="et_btn">插件日志</a>
+                                            <a href="javascript:void(0);" onclick="clear_runtime_log()" class="et_btn et_btn_danger">清空运行日志</a>
                                         </div>
 
-                                        <!-- 状态面板 -->
+                                        <!-- 状态面板: 单行紧凑展示 -->
                                         <div style="margin-bottom: 12px;">
                                             <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable">
                                                 <thead><tr><td colspan="2">EasyTier - 服务运行状态</td></tr></thead>
                                                 <tr>
                                                     <th>运行状态</th>
                                                     <td>
-                                                        <span id="easytier_status_badge" class="status_badge status_stopped">检测中...</span>
-                                                        <span style="float:right; margin-right:10px;">
-                                                            <input class="button_gen" id="btn_start" onClick="service_action('start')" type="button" value="启动服务" style="display:none; font-size:12px; height:26px; padding:0 10px;" />
-                                                            <input class="button_gen" id="btn_stop" onClick="service_action('stop')" type="button" value="停止服务" style="display:none; font-size:12px; height:26px; padding:0 10px;" />
-                                                            <input class="button_gen" id="btn_restart" onClick="service_action('restart')" type="button" value="重启服务" style="display:none; font-size:12px; height:26px; padding:0 10px;" />
+                                                        <span id="easytier_status_badge" class="status_badge status_checking">检测中...</span>
+                                                        <span style="float:right; margin-right:8px; white-space:nowrap;">
+                                                            <button type="button" class="et_btn et_btn_primary" id="btn_start" onClick="service_action('start')" style="display:none;">▶ 启动服务</button>
+                                                            <button type="button" class="et_btn et_btn_danger" id="btn_stop" onClick="service_action('stop')" style="display:none;">■ 停止服务</button>
+                                                            <button type="button" class="et_btn" id="btn_restart" onClick="service_action('restart')" style="display:none;">↻ 重启服务</button>
                                                         </span>
                                                     </td>
                                                 </tr>
                                             </table>
                                         </div>
 
-                                        <!-- Tab 标签按钮组 -->
-                                        <div style="margin-top: 15px;">
+                                        <!-- Tab 标签按钮组: 强制单行显示 -->
+                                        <div class="tab_btn_bar">
                                             <div id="tab_btn_1" class="tab_btn tab_btn_active" onclick="switch_tab(1)">⚙️ 基本配置</div>
                                             <div id="tab_btn_2" class="tab_btn" onclick="switch_tab(2)">📝 高级 TOML 配置</div>
                                             <div id="tab_btn_3" class="tab_btn" onclick="switch_tab(3)">🌐 节点与对端状态 (CLI)</div>
@@ -590,32 +731,32 @@ function count_down_close() {
                                                         <th>开启 EasyTier</th>
                                                         <td>
                                                             <input type="checkbox" id="easytier_enable" style="vertical-align:middle;">
-                                                            <span style="color:#00ffe4; margin-left:5px; font-weight:bold;">启用 EasyTier 服务</span>
+                                                            <span style="color:#00ffe4; margin-left:6px; font-weight:bold; vertical-align:middle;">启用 EasyTier 服务</span>
                                                         </td>
                                                     </tr>
                                                     <tr>
                                                         <th>开机自启</th>
                                                         <td>
                                                             <input type="checkbox" id="easytier_autostart" style="vertical-align:middle;">
-                                                            <span style="color:#a0aeb5; margin-left:5px;">路由重启后自动运行 EasyTier</span>
+                                                            <span style="color:#a0aeb5; margin-left:6px; vertical-align:middle;">路由器重启后自动拉起 EasyTier 服务</span>
                                                         </td>
                                                     </tr>
                                                     <tr>
                                                         <th>配置模式</th>
                                                         <td>
-                                                            <label style="cursor:pointer; margin-right:15px;">
-                                                                <input type="radio" name="easytier_mode" id="mode_simple" value="simple" onchange="on_mode_change();" checked>
-                                                                <b>简易向导模式</b> (推荐，自动配置子网与对端)
+                                                            <label style="cursor:pointer; margin-right:20px; vertical-align:middle;">
+                                                                <input type="radio" name="easytier_mode" id="mode_simple" value="simple" onchange="on_mode_change();" checked style="vertical-align:middle;">
+                                                                <b style="vertical-align:middle;">简易向导模式</b> <span style="color:#a0aeb5; font-size:12px; vertical-align:middle;">(推荐，自动配置子网与对端)</span>
                                                             </label>
-                                                            <label style="cursor:pointer;">
-                                                                <input type="radio" name="easytier_mode" id="mode_custom" value="custom" onchange="on_mode_change();">
-                                                                <b>高级 TOML 自定义</b> (完整配置文件)
+                                                            <label style="cursor:pointer; vertical-align:middle;">
+                                                                <input type="radio" name="easytier_mode" id="mode_custom" value="custom" onchange="on_mode_change();" style="vertical-align:middle;">
+                                                                <b style="vertical-align:middle;">高级 TOML 自定义</b> <span style="color:#a0aeb5; font-size:12px; vertical-align:middle;">(完整配置文件定制)</span>
                                                             </label>
                                                         </td>
                                                     </tr>
                                                 </table>
 
-                                                <!-- 简易向导模式分组 -->
+                                                <!-- 简易向导模式分组: 各表单字段均单行显示 -->
                                                 <div id="simple_settings_group" style="margin-top:10px;">
                                                     <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable">
                                                         <thead><tr><td colspan="2">EasyTier 简易组网参数</td></tr></thead>
@@ -623,59 +764,55 @@ function count_down_close() {
                                                             <th>节点名称 (Hostname)</th>
                                                             <td>
                                                                 <input type="text" id="easytier_node_name" class="input_text" style="width:200px;" value="ROG-GS7" />
-                                                                <span style="color:#a0aeb5; margin-left:6px;">本节点在 VPN 网络中的名称</span>
+                                                                <span class="inline_tip">本设备在虚拟组网中展示的主机名</span>
                                                             </td>
                                                         </tr>
                                                         <tr>
                                                             <th>组网网络名称</th>
                                                             <td>
                                                                 <input type="text" id="easytier_network_name" class="input_text" style="width:200px;" placeholder="例如: my_home_net" />
-                                                                <span style="color:#FC0; margin-left:6px;">* 相同网络名称的节点才能互相通信</span>
+                                                                <span class="inline_warn">* 加入同一网络的设备必须完全一致</span>
                                                             </td>
                                                         </tr>
                                                         <tr>
                                                             <th>组网通信密钥</th>
                                                             <td>
-                                                                <input type="password" id="easytier_network_secret" class="input_text" style="width:200px;" placeholder="建议填写强密码" />
-                                                                <span class="ks_btn" style="margin-left:6px; cursor:pointer;" onclick="toggle_secret_visibility();">显示/隐藏</span>
-                                                                <span style="color:#FC0; margin-left:6px;">* 节点连接认证口令</span>
+                                                                <input type="password" id="easytier_network_secret" class="input_text" style="width:200px;" placeholder="建议设置强口令" />
+                                                                <button type="button" class="et_btn" onclick="toggle_secret_visibility();" style="margin-left:6px;">👁️ 显示/隐藏</button>
+                                                                <span class="inline_warn">* 组网认证口令</span>
                                                             </td>
                                                         </tr>
                                                         <tr>
                                                             <th>虚拟 IPv4 地址</th>
                                                             <td>
                                                                 <input type="text" id="easytier_ipv4" class="input_text" style="width:160px;" placeholder="例如: 10.144.144.1" />
-                                                                <label style="cursor:pointer; margin-left:8px;">
+                                                                <label style="cursor:pointer; margin-left:10px; vertical-align:middle;">
                                                                     <input type="checkbox" id="easytier_dhcp" onchange="toggle_dhcp(this.checked);" checked style="vertical-align:middle;">
-                                                                    <b>启用 DHCP 自动分配</b>
+                                                                    <b style="vertical-align:middle;">启用 DHCP 自动分配</b>
                                                                 </label>
-                                                                <div id="ipv4_tip" style="color:#a0aeb5; margin-top:4px; font-size:11px;">(DHCP模式: 自动由组网分配可用IP)</div>
+                                                                <span id="ipv4_tip" class="inline_tip">(自动由组网分配可用IP)</span>
                                                             </td>
                                                         </tr>
                                                         <tr>
                                                             <th>局域网网段代理 (子网转发)</th>
                                                             <td>
-                                                                <input type="text" id="easytier_proxy_network" class="input_text" style="width:200px;" placeholder="例如: 192.168.50.0/24" />
-                                                                <div style="color:#00ffe4; margin-top:4px; font-size:12px;">
-                                                                    💡 核心功能：将此局域网网段广播至 EasyTier，远端手机/电脑连接后即可直接访问家中 NAS、台式机等所有内网设备！
-                                                                </div>
+                                                                <input type="text" id="easytier_proxy_network" class="input_text" style="width:180px;" placeholder="例如: 192.168.50.0/24" />
+                                                                <span class="inline_highlight">💡 广播局域网网段，异地设备连入后可直连家中 NAS、台式机等所有内网设备</span>
                                                             </td>
                                                         </tr>
                                                         <tr>
                                                             <th>监听端口</th>
                                                             <td>
                                                                 <input type="text" id="easytier_port" class="input_text" style="width:100px;" value="11010" />
-                                                                <span style="color:#a0aeb5; margin-left:6px;">本地 TCP/UDP 监听端口 (默认 11010)</span>
+                                                                <span class="inline_tip">本地 TCP/UDP 外部通信端口 (默认 11010)</span>
                                                             </td>
                                                         </tr>
                                                         <tr>
-                                                            <th>对端节点 (Peers)</th>
-                                                            <td>
-                                                                <textarea id="easytier_peers" style="width:96%; height:80px; font-family:'Consolas',monospace; font-size:12px;" class="input_text" placeholder="tcp://public.easytier.top:11010"></textarea>
+                                                            <th style="vertical-align:top; padding-top:10px;">对端节点 (Peers)</th>
+                                                            <td style="white-space:normal;">
+                                                                <textarea id="easytier_peers" style="width:98%; height:75px; font-family:'Consolas',monospace; font-size:12px; line-height:16px;" class="input_text" placeholder="tcp://public.easytier.top:11010"></textarea>
                                                                 <div style="color:#a0aeb5; margin-top:4px; font-size:11px;">
-                                                                    公共中继节点或直连节点地址，每行一个。例如：<br/>
-                                                                    <code>tcp://public.easytier.top:11010</code><br/>
-                                                                    <code>udp://223.5.5.5:11010</code>
+                                                                    公共中继节点或私有对端地址 (每行一个)，例如: <code>tcp://public.easytier.top:11010</code> 或 <code>udp://223.5.5.5:11010</code>
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -684,27 +821,28 @@ function count_down_close() {
 
                                                 <!-- 高级自定义 TOML 切换提示 -->
                                                 <div id="custom_settings_group" style="margin-top:10px; display:none;">
-                                                    <div style="padding:15px; background:rgba(0,0,0,0.3); border-radius:4px; border:1px dashed #5a6a6f; text-align:center;">
-                                                        <span style="color:#00ffe4; font-size:14px;">当前已启用【高级 TOML 自定义模式】</span><br/>
-                                                        <span style="color:#a0aeb5; font-size:12px; margin-top:6px; display:inline-block;">请前往上方 “📝 高级 TOML 配置” 标签页编辑您的 TOML 配置文件。</span><br/>
-                                                        <button type="button" class="ks_btn" style="margin-top:10px;" onclick="switch_tab(2)">👉 立即前往编辑 TOML 配置</button>
+                                                    <div style="padding:16px; background:rgba(0,0,0,0.3); border-radius:4px; border:1px dashed #5a6a6f; text-align:center;">
+                                                        <span style="color:#00ffe4; font-size:14px; font-weight:bold;">当前已启用【高级 TOML 自定义模式】</span><br/>
+                                                        <span style="color:#a0aeb5; font-size:12px; margin-top:6px; display:inline-block;">请前往上方 “📝 高级 TOML 配置” 标签页编辑您的完整 TOML 配置文件。</span><br/>
+                                                        <button type="button" class="et_btn et_btn_primary" style="margin-top:12px;" onclick="switch_tab(2)">👉 立即前往编辑 TOML 配置</button>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <!-- 页面 2: 高级 TOML 配置 -->
+                                            <!-- 页面 2: 高级 TOML 配置 (完全单行按钮，不换行，不截断) -->
                                             <div id="tab_page_2" class="tab_page" style="display:none;">
                                                 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable">
                                                     <thead><tr><td colspan="2">EasyTier 完整 TOML 配置文件</td></tr></thead>
                                                     <tr>
-                                                        <th>TOML 配置文件内容</th>
-                                                        <td>
-                                                            <div style="margin-bottom:6px;">
-                                                                <input class="ks_btn" onClick="generate_toml_from_simple()" type="button" value="⚡ 从简易向导转换生成 TOML 模板" />
-                                                                <input class="ks_btn ks_btn_danger" onClick="E('easytier_config_content').value=''" type="button" value="清空内容" style="margin-left:6px;" />
-                                                                <a href="https://easytier.cn/web/index.html#/config_generator" target="_blank" class="ks_btn" style="margin-left:6px;">打开官方配置生成器 ↗</a>
+                                                        <th style="vertical-align:top; padding-top:10px;">TOML 配置文件内容</th>
+                                                        <td style="white-space:normal;">
+                                                            <!-- 单行按钮工具栏 -->
+                                                            <div class="btn_toolbar">
+                                                                <button type="button" class="et_btn et_btn_primary" onclick="generate_toml_from_simple()">⚡ 从简易向导生成 TOML</button>
+                                                                <button type="button" class="et_btn et_btn_danger" onclick="clear_toml_content()">🗑️ 清空内容</button>
+                                                                <a href="https://easytier.cn/web/index.html#/config_generator" target="_blank" class="et_btn">↗ 官方配置生成器</a>
                                                             </div>
-                                                            <textarea id="easytier_config_content" style="width: 97%; height: 350px; font-family:'Consolas','Courier New',monospace; font-size:12px; line-height:16px;" class="input_text" spellcheck="false" placeholder="# 请在此粘贴完整的 EasyTier TOML 配置文件..."></textarea>
+                                                            <textarea id="easytier_config_content" style="width: 98%; height: 380px; font-family:'Consolas','Courier New',monospace; font-size:12px; line-height:17px;" class="input_text" spellcheck="false" placeholder="# 请在此粘贴完整的 EasyTier TOML 配置文件..."></textarea>
                                                             <div style="margin-top:6px; color:#a0aeb5; font-size:11px;">
                                                                 支持 EasyTier 全功能参数（多协议监听、WireGuard 协议监听、多子网路由、数据压缩、AES-GCM 加密等）。
                                                             </div>
@@ -713,12 +851,12 @@ function count_down_close() {
                                                 </table>
                                             </div>
 
-                                            <!-- 页面 3: 节点与对端状态 (CLI) -->
+                                            <!-- 页面 3: 节点与对端状态 (CLI) (单行按钮) -->
                                             <div id="tab_page_3" class="tab_page" style="display:none;">
-                                                <div style="margin-bottom:10px;">
-                                                    <input class="ks_btn" onClick="fetch_cli_info('peer')" type="button" value="👥 查看对端节点 (easytier-cli peer)" />
-                                                    <input class="ks_btn" onClick="fetch_cli_info('node')" type="button" value="💻 查看本节点信息 (easytier-cli node)" style="margin-left:6px;" />
-                                                    <input class="ks_btn" onClick="fetch_cli_info('route')" type="button" value="🗺️ 查看路由与子网 (easytier-cli route)" style="margin-left:6px;" />
+                                                <div class="btn_toolbar">
+                                                    <button type="button" class="et_btn" onclick="fetch_cli_info('peer')">👥 对端节点 (peer)</button>
+                                                    <button type="button" class="et_btn" onclick="fetch_cli_info('node')">💻 本机状态 (node)</button>
+                                                    <button type="button" class="et_btn" onclick="fetch_cli_info('route')">🗺️ 路由与子网 (route)</button>
                                                 </div>
                                                 <textarea id="cli_terminal_output" class="cli_terminal" readonly="readonly" placeholder="点击上方按钮即可查询节点与网络拓扑实时状态..."></textarea>
                                                 <div style="color:#a0aeb5; font-size:11px; margin-top:6px;">
@@ -726,20 +864,20 @@ function count_down_close() {
                                                 </div>
                                             </div>
 
-                                            <!-- 页面 4: 运行输出日志 -->
+                                            <!-- 页面 4: 运行输出日志 (单行按钮) -->
                                             <div id="tab_page_4" class="tab_page" style="display:none;">
-                                                <div style="margin-bottom:10px;">
-                                                    <input class="ks_btn" onClick="fetch_runtime_log()" type="button" value="🔄 刷新运行日志" />
-                                                    <input class="ks_btn ks_btn_danger" onClick="clear_runtime_log()" type="button" value="🗑️ 清空运行日志" style="margin-left:6px;" />
+                                                <div class="btn_toolbar">
+                                                    <button type="button" class="et_btn" onclick="fetch_runtime_log()">🔄 刷新运行日志</button>
+                                                    <button type="button" class="et_btn et_btn_danger" onclick="clear_runtime_log()">🗑️ 清空运行日志</button>
                                                 </div>
-                                                <textarea id="runtime_log_area" class="cli_terminal" style="height:320px;" readonly="readonly" placeholder="暂无运行日志..."></textarea>
+                                                <textarea id="runtime_log_area" class="cli_terminal" style="height:360px;" readonly="readonly" placeholder="暂无运行日志..."></textarea>
                                             </div>
 
                                         </div>
 
                                         <!-- 底部操作按钮 -->
-                                        <div class="apply_gen" style="margin-top:15px;">
-                                            <input class="button_gen" onClick="save_and_apply()" type="button" value="保存并应用" style="font-size:14px; height:32px; padding:0 25px;" />
+                                        <div class="apply_gen" style="margin-top:16px;">
+                                            <input class="button_gen" onClick="save_and_apply()" type="button" value="保存并应用" style="font-size:14px; height:33px; width:130px;" />
                                         </div>
 
                                     </td>
