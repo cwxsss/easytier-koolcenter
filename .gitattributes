@@ -1,0 +1,16 @@
+# Auto detect text files and force LF line endings
+* text=auto eol=lf
+
+# Explicitly declare text files you want to always have LF line endings
+*.sh text eol=lf
+*.asp text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.valid text eol=lf
+*.py text eol=lf
+
+# Denormalize binary files
+*.png binary
+easytier-core binary
+easytier-cli binary
