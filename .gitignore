@@ -1,0 +1,17 @@
+# OS & Editor
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+*~
+.vscode/
+.idea/
+
+# Distribution archives (distributed via GitHub Releases)
+*.tar.gz
+*.tar.gz.md5
+build_tmp/
+temp_*/
+
+# Logs
+*.log
