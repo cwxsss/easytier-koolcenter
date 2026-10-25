@@ -102,7 +102,8 @@ generate_config() {
     local DHCP_FLAG="${easytier_dhcp:-0}"
     local IPV4_ADDR="${easytier_ipv4:-}"
     local PROXY_NET="${easytier_proxy_network:-}"
-    local ACCEPT_ROUTES="${easytier_accept_routes:-1}"
+    local ROUTE_MODE="${easytier_route_mode:-all}"
+    [ -z "$easytier_route_mode" ] && [ "$easytier_accept_routes" = "0" ] && ROUTE_MODE="none"
     
     # 自动获取路由器局域网网段 (例如 192.168.50.0/24)
     if [ -z "$PROXY_NET" ]; then
@@ -134,12 +135,38 @@ ipv4 = "$IPV4_ADDR"
 EOF
     fi
 
-    # 路由接收控制: 默认为 1 (自动接收全部对端子网)；若设为 0，则声明 routes = []，拒收对端子网避免二级路由/上级光猫网段冲突
-    if [ "$ACCEPT_ROUTES" = "0" ]; then
+    # 路由接收控制: all (全部接收) / whitelist (仅接收白名单) / none (全部拒收)
+    if [ "$ROUTE_MODE" = "none" ]; then
         cat >> "$CONFIG_FILE" <<-EOF
 
 # 禁用接收对端动态子网路由 (防上级光猫/父网段冲突)
 routes = []
+EOF
+    elif [ "$ROUTE_MODE" = "whitelist" ]; then
+        local WL_RAW=""
+        if [ -n "$easytier_route_whitelist_encoded" ]; then
+            WL_RAW=$(echo "$easytier_route_whitelist_encoded" | base64 -d 2>/dev/null)
+        else
+            WL_RAW="$easytier_route_whitelist"
+        fi
+
+        cat >> "$CONFIG_FILE" <<-EOF
+
+# 对端子网白名单路由 (仅接收指定子网，排除其他冲突网段)
+routes = [
+EOF
+        if [ -n "$WL_RAW" ]; then
+            echo "$WL_RAW" | tr ',;' '\n' | while read -r r_line || [ -n "$r_line" ]; do
+                r_line=$(echo "$r_line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+                [ -z "$r_line" ] && continue
+                echo "$r_line" | grep -q '^#' && continue
+                cat >> "$CONFIG_FILE" <<-EOF
+    "$r_line",
+EOF
+            done
+        fi
+        cat >> "$CONFIG_FILE" <<-EOF
+]
 EOF
     fi
 
@@ -210,9 +237,12 @@ setup_firewall() {
     local PORT="${easytier_port:-11010}"
     echo_date "🛡️ 正在配置防火墙规则..." >> $LOG_FILE
     
-    # 开启 Linux 内核 IP 转发
+    # 开启 Linux 内核 IP 转发并放宽反向路径过滤 (确保跨网段数据包正常转发)
     echo 1 > /proc/sys/net/ipv4/ip_forward 2>/dev/null
     sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1
+    for f in /proc/sys/net/ipv4/conf/*/rp_filter; do
+        echo 2 > "$f" 2>/dev/null || echo 0 > "$f" 2>/dev/null
+    done
 
     # 1. 允许 EasyTier 虚拟网卡入站流量 (ping 与访问路由网关)
     iptables -C INPUT -i tun+ -j ACCEPT 2>/dev/null || iptables -I INPUT -i tun+ -j ACCEPT 2>/dev/null

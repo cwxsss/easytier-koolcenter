@@ -49,6 +49,9 @@ dbus remove easytier_enable
 dbus remove easytier_autostart
 dbus remove easytier_watchdog
 dbus remove easytier_watchdog_interval
+dbus remove easytier_route_mode
+dbus remove easytier_route_whitelist
+dbus remove easytier_route_whitelist_encoded
 dbus remove easytier_accept_routes
 dbus remove easytier_mode
 dbus remove easytier_node_name

@@ -277,8 +277,20 @@ function conf2obj() {
         }
     }
 
-    // 是否接收对端动态路由 (默认为开启 1; 若为 0 则不接收对端子网防冲突)
-    E("easytier_accept_routes").checked = (dbus["easytier_accept_routes"] !== "0");
+    // 对端子网接收策略与白名单
+    var routeMode = dbus["easytier_route_mode"] || (dbus["easytier_accept_routes"] === "0" ? "none" : "all");
+    E("easytier_route_mode").value = routeMode;
+    toggle_route_mode(routeMode);
+
+    if (dbus["easytier_route_whitelist_encoded"]) {
+        try {
+            E("easytier_route_whitelist").value = decodeURIComponent(escape(atob(dbus["easytier_route_whitelist_encoded"])));
+        } catch(e) {
+            E("easytier_route_whitelist").value = dbus["easytier_route_whitelist"] || "";
+        }
+    } else {
+        E("easytier_route_whitelist").value = dbus["easytier_route_whitelist"] || "";
+    }
 
     // 对端节点列表
     if (dbus["easytier_peers_encoded"]) {
@@ -318,6 +330,19 @@ function toggle_mode_display(mode) {
 function on_mode_change() {
     var mode = $("input[name='easytier_mode']:checked").val();
     toggle_mode_display(mode);
+}
+
+function toggle_route_mode(mode) {
+    if (mode === "whitelist") {
+        $("#route_whitelist_tr").show();
+    } else {
+        $("#route_whitelist_tr").hide();
+    }
+}
+
+function on_route_mode_change() {
+    var mode = E("easytier_route_mode").value;
+    toggle_route_mode(mode);
 }
 
 function toggle_dhcp(checked) {
@@ -395,7 +420,14 @@ function get_form_fields() {
         data["easytier_ipv4"] = E("easytier_ipv4").value.trim();
         data["easytier_port"] = E("easytier_port").value.trim() || "11010";
         data["easytier_proxy_network"] = E("easytier_proxy_network").value.trim();
-        data["easytier_accept_routes"] = E("easytier_accept_routes").checked ? "1" : "0";
+        var routeMode = E("easytier_route_mode").value;
+        data["easytier_route_mode"] = routeMode;
+        var rWhitelist = E("easytier_route_whitelist").value.trim();
+        data["easytier_route_whitelist"] = rWhitelist;
+        try {
+            data["easytier_route_whitelist_encoded"] = btoa(unescape(encodeURIComponent(rWhitelist)));
+        } catch(e) {}
+        data["easytier_accept_routes"] = (routeMode === "all") ? "1" : "0";
         
         var peers = E("easytier_peers").value.trim();
         data["easytier_peers"] = peers;
@@ -502,16 +534,27 @@ function generate_toml_from_simple() {
     var isDhcp = E("easytier_dhcp").checked;
     var ipv4 = E("easytier_ipv4").value.trim();
     var proxyNet = E("easytier_proxy_network").value.trim();
-    var acceptRoutes = E("easytier_accept_routes").checked;
+    var routeMode = E("easytier_route_mode").value;
+    var rWhitelist = E("easytier_route_whitelist").value.trim();
     var peers = E("easytier_peers").value.trim().split("\n");
 
     var toml = "# 从简易向导转换生成的 EasyTier 配置\n";
     toml += 'instance_name = "' + node + '"\n';
     toml += 'hostname = "' + node + '"\n\n';
 
-    if (!acceptRoutes) {
-        toml += "# 声明手动路由为空，禁用自动接收对端子网路由，避免二级路由/上级网段冲突\n";
+    if (routeMode === "none") {
+        toml += "# 声明手动路由为空，禁用接收对端子网路由，避免上级网络冲突\n";
         toml += "routes = []\n\n";
+    } else if (routeMode === "whitelist") {
+        toml += "# 对端子网白名单路由\nroutes = [\n";
+        var rArr = rWhitelist.split(/[\n,;]+/);
+        for (var i = 0; i < rArr.length; i++) {
+            var r = rArr[i].trim();
+            if (r && r.indexOf("#") !== 0) {
+                toml += '    "' + r + '",\n';
+            }
+        }
+        toml += "]\n\n";
     }
 
     if (isDhcp || !ipv4) {
@@ -858,12 +901,22 @@ function count_down_close() {
                                                             </td>
                                                         </tr>
                                                         <tr>
-                                                            <th style="vertical-align:top; padding-top:10px;">接收对端子网路由</th>
+                                                            <th>对端子网接收策略</th>
+                                                            <td>
+                                                                <select id="easytier_route_mode" class="input_text" onchange="on_route_mode_change();" style="width:260px; vertical-align:middle;">
+                                                                    <option value="all">自动接收全部对端子网 (默认)</option>
+                                                                    <option value="whitelist">白名单模式 (仅允许指定子网，推荐)</option>
+                                                                    <option value="none">全部拒收 (仅对外广播本路由内网)</option>
+                                                                </select>
+                                                                <span class="inline_tip">控制是否学习并写入其他节点广播的子网路由</span>
+                                                            </td>
+                                                        </tr>
+                                                        <tr id="route_whitelist_tr" style="display:none;">
+                                                            <th style="vertical-align:top; padding-top:10px;">子网白名单 (Routes)</th>
                                                             <td style="white-space:normal;">
-                                                                <input type="checkbox" id="easytier_accept_routes" checked style="vertical-align:middle;">
-                                                                <span style="color:#a0aeb5; margin-left:6px; vertical-align:middle;">自动学习并接收其他节点广播的子网路由（默认开启）</span>
+                                                                <textarea id="easytier_route_whitelist" style="width:98%; height:60px; font-family:'Consolas',monospace; font-size:12px; line-height:16px;" class="input_text" placeholder="例如: 172.16.0.0/16&#10;10.3.0.0/16"></textarea>
                                                                 <div style="color:#00ffe4; margin-top:4px; font-size:11px; line-height:16px;">
-                                                                    💡 <b>二级路由/光猫下挂场景（必看）</b>：若上级光猫或其他设备广播了光猫网段（如 192.168.1.0/24），请<b>取消勾选此项</b>！取消后本路由器仅向外广播 192.168.50.0/24，拒收对端子网，彻底避免物理 WAN 口网关冲突断网。
+                                                                    💡 <b>白名单使用指南</b>：输入允许访问的远端子网 CIDR（每行一个或逗号隔开，如 <code>172.16.0.0/16</code>）。<b>不要填写</b>与本机 WAN 口/光猫冲突的网段（如 <code>192.168.1.0/24</code>），未填写的网段将自动被拦截，彻底消除路由劫持风险。
                                                                 </div>
                                                             </td>
                                                         </tr>

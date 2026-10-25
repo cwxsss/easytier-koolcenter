@@ -151,6 +151,7 @@ register_dbus() {
     [ -z "$(dbus get easytier_autostart)" ] && dbus set easytier_autostart="1"
     [ -z "$(dbus get easytier_watchdog)" ] && dbus set easytier_watchdog="1"
     [ -z "$(dbus get easytier_watchdog_interval)" ] && dbus set easytier_watchdog_interval="2"
+    [ -z "$(dbus get easytier_route_mode)" ] && dbus set easytier_route_mode="all"
     [ -z "$(dbus get easytier_accept_routes)" ] && dbus set easytier_accept_routes="1"
     [ -z "$(dbus get easytier_mode)" ] && dbus set easytier_mode="simple"
     [ -z "$(dbus get easytier_port)" ] && dbus set easytier_port="11010"
