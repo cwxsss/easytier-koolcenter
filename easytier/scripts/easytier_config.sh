@@ -16,11 +16,13 @@ CONFIG_FILE="$KSROOT/configs/easytier.conf"
 EASYTIER_BIN="$KSROOT/bin/easytier-core"
 EASYTIER_CLI="$KSROOT/bin/easytier-cli"
 PID_FILE="/var/run/easytier.pid"
+LOCK_FILE="/var/lock/easytier.lock"
 LOG_FILE="/tmp/upload/easytier_log.txt"
 RUNTIME_LOG="/tmp/upload/easytier_runtime.log"
 PEER_FILE="/tmp/upload/easytier_peer_info.txt"
 NODE_FILE="/tmp/upload/easytier_node_info.txt"
 ROUTE_FILE="/tmp/upload/easytier_route_info.txt"
+CRON_ID="easytier_watchdog"
 
 mkdir -p /tmp/upload
 mkdir -p "$KSROOT/configs"
@@ -30,7 +32,7 @@ OPERATION=""
 WEB_SUBMIT=""
 for arg in "$@"; do
     case "$arg" in
-        start|stop|restart|status|save_config|get_peers|get_nodes|get_routes|clear_runtime_log)
+        start|stop|restart|status|save_config|get_peers|get_nodes|get_routes|clear_runtime_log|watchdog)
             OPERATION="$arg"
             ;;
         web_submit)
@@ -100,6 +102,7 @@ generate_config() {
     local DHCP_FLAG="${easytier_dhcp:-0}"
     local IPV4_ADDR="${easytier_ipv4:-}"
     local PROXY_NET="${easytier_proxy_network:-}"
+    local ACCEPT_ROUTES="${easytier_accept_routes:-1}"
     
     # 自动获取路由器局域网网段 (例如 192.168.50.0/24)
     if [ -z "$PROXY_NET" ]; then
@@ -128,6 +131,15 @@ EOF
         cat >> "$CONFIG_FILE" <<-EOF
 dhcp = false
 ipv4 = "$IPV4_ADDR"
+EOF
+    fi
+
+    # 路由接收控制: 默认为 1 (自动接收全部对端子网)；若设为 0，则声明 routes = []，拒收对端子网避免二级路由/上级光猫网段冲突
+    if [ "$ACCEPT_ROUTES" = "0" ]; then
+        cat >> "$CONFIG_FILE" <<-EOF
+
+# 禁用接收对端动态子网路由 (防上级光猫/父网段冲突)
+routes = []
 EOF
     fi
 
@@ -169,6 +181,17 @@ EOF
 
     # 处理子网代理 (局域网转发)
     if [ -n "$PROXY_NET" ]; then
+        # 预警检测: 检查子网代理是否与 WAN 口物理网段重合 (会导致网关被劫持、网络断开)
+        local WAN_IP=$(nvram get wan0_ipaddr 2>/dev/null)
+        [ -z "$WAN_IP" ] && WAN_IP=$(nvram get wan_ipaddr 2>/dev/null)
+        if [ -n "$WAN_IP" ]; then
+            local WAN_SUBNET=$(echo "$WAN_IP" | awk -F. '{printf "%d.%d.%d.0/24", $1, $2, $3}')
+            if [ "$PROXY_NET" = "$WAN_SUBNET" ]; then
+                echo_date "⚠️ [严重警告] 子网代理网段 ($PROXY_NET) 与路由器 WAN 口网段 ($WAN_SUBNET) 冲突！" >> $LOG_FILE
+                echo_date "⚠️ [严重警告] 这极可能导致光猫默认网关被劫持、网络断开并引发系统终止服务！" >> $LOG_FILE
+            fi
+        fi
+
         cat >> "$CONFIG_FILE" <<-EOF
 # 路由器局域网子网代理 (允许异地节点访问家中的内网设备)
 [[proxy_network]]
@@ -269,6 +292,7 @@ start_easytier() {
         setup_firewall
         echo_date "✅ EasyTier 启动成功！进程 PID: $NEW_PID" >> $LOG_FILE
         dbus set easytier_enable="1"
+        setup_watchdog
         return 0
     else
         echo_date "❌ EasyTier 启动失败，进程意外退出！请检查配置文件或查看运行日志" >> $LOG_FILE
@@ -281,6 +305,7 @@ start_easytier() {
 stop_easytier() {
     echo_date "⏹️ 正在停止 EasyTier 服务..." >> $LOG_FILE
 
+    remove_watchdog
     clean_firewall
 
     if [ -f "$PID_FILE" ]; then
@@ -299,6 +324,42 @@ stop_easytier() {
     echo_date "✅ EasyTier 服务已停止" >> $LOG_FILE
     dbus set easytier_enable="0"
     return 0
+}
+
+# 8. 看门狗守护与自动故障重启
+setup_watchdog() {
+    local WD_ENABLE="${easytier_watchdog:-1}"
+    local WD_INTERVAL="${easytier_watchdog_interval:-2}"
+    [ -z "$WD_INTERVAL" ] && WD_INTERVAL=2
+
+    cru d "$CRON_ID" >/dev/null 2>&1
+    if [ "$WD_ENABLE" = "1" ]; then
+        cru a "$CRON_ID" "*/$WD_INTERVAL * * * * $KSROOT/scripts/easytier_config.sh watchdog"
+        echo_date "🛡️ [Watchdog 守护] 已激活进程看门狗 (检查周期: 每 ${WD_INTERVAL} 分钟)" >> $LOG_FILE
+    fi
+}
+
+remove_watchdog() {
+    cru d "$CRON_ID" >/dev/null 2>&1
+}
+
+check_watchdog() {
+    eval $(dbus export easytier_) 2>/dev/null || true
+    [ "$easytier_enable" != "1" ] && exit 0
+    [ "${easytier_watchdog:-1}" = "0" ] && exit 0
+
+    local IS_RUNNING=0
+    if [ -f "$PID_FILE" ] && kill -0 $(cat "$PID_FILE" 2>/dev/null) 2>/dev/null; then
+        IS_RUNNING=1
+    elif pidof easytier-core >/dev/null 2>&1; then
+        IS_RUNNING=1
+    fi
+
+    if [ "$IS_RUNNING" = "0" ]; then
+        echo_date "⚠️ [Watchdog 守护] 检测到 EasyTier 进程异常退出，正在自动拉起重启..." >> $LOG_FILE
+        echo_date "⚠️ [Watchdog 守护] 检测到 EasyTier 进程异常退出，正在自动拉起重启..." >> $RUNTIME_LOG
+        start_easytier
+    fi
 }
 
 # 8. 查询 CLI 状态并写入文件 (供 Web 界面直接读取展示)
@@ -354,13 +415,28 @@ if [ "$OPERATION" = "get_routes" ]; then
     exit 0
 fi
 
-# 3. 前端 Web 表单提交处理 (采用非阻塞异步应答机制)
+# 3. Watchdog 守护检测快速拦截
+if [ "$OPERATION" = "watchdog" ]; then
+    check_watchdog
+    exit 0
+fi
+
+# 4. 前端 Web 表单提交处理 (采用非阻塞异步应答机制 + 排他互斥锁)
 if [ "$WEB_SUBMIT" = "web_submit" ]; then
     # 立即响应前端 HTTP 请求，防止 httpd 出现 504 Gateway Timeout 或假死
     http_response "success"
 
     # 将耗时操作交由后台子 Shell 执行
     (
+        if command -v flock >/dev/null 2>&1; then
+            exec 200>"$LOCK_FILE"
+            flock -x -w 10 200 || {
+                echo_date "⚠️ 另一个配置任务正在执行中，本次操作取消以防冲突" >> $LOG_FILE
+                echo "XU6J03M6" >> $LOG_FILE
+                exit 1
+            }
+        fi
+
         true > "$LOG_FILE" 2>/dev/null
         echo_date "=======================================================" >> $LOG_FILE
         echo_date "收到 Web 操作指令: $OPERATION" >> $LOG_FILE
@@ -399,7 +475,7 @@ if [ "$WEB_SUBMIT" = "web_submit" ]; then
     exit 0
 fi
 
-# 4. 命令行直接执行逻辑 (如 SSH 下手动启动 / 停止)
+# 5. 命令行直接执行逻辑 (如 SSH 下手动启动 / 停止)
 case "$OPERATION" in
     start)
         start_easytier
@@ -411,8 +487,11 @@ case "$OPERATION" in
         stop_easytier
         start_easytier
         ;;
+    watchdog)
+        check_watchdog
+        ;;
     *)
-        echo "用法: $0 {start|stop|restart|status|get_peers|get_nodes|get_routes}"
+        echo "用法: $0 {start|stop|restart|status|watchdog|get_peers|get_nodes|get_routes}"
         exit 1
         ;;
 esac

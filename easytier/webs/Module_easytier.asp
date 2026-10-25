@@ -237,6 +237,10 @@ function conf2obj() {
     // 基本开关
     E("easytier_enable").checked = (dbus["easytier_enable"] === "1");
     E("easytier_autostart").checked = (dbus["easytier_autostart"] !== "0");
+    E("easytier_watchdog").checked = (dbus["easytier_watchdog"] !== "0");
+    if (dbus["easytier_watchdog_interval"]) {
+        E("easytier_watchdog_interval").value = dbus["easytier_watchdog_interval"];
+    }
 
     // 模式
     var mode = dbus["easytier_mode"] || "simple";
@@ -272,6 +276,9 @@ function conf2obj() {
             E("easytier_proxy_network").value = parts[0] + '.' + parts[1] + '.' + parts[2] + '.0/24';
         }
     }
+
+    // 是否接收对端动态路由 (默认为开启 1; 若为 0 则不接收对端子网防冲突)
+    E("easytier_accept_routes").checked = (dbus["easytier_accept_routes"] !== "0");
 
     // 对端节点列表
     if (dbus["easytier_peers_encoded"]) {
@@ -375,6 +382,8 @@ function get_form_fields() {
     var data = {};
     data["easytier_enable"] = E("easytier_enable").checked ? "1" : "0";
     data["easytier_autostart"] = E("easytier_autostart").checked ? "1" : "0";
+    data["easytier_watchdog"] = E("easytier_watchdog").checked ? "1" : "0";
+    data["easytier_watchdog_interval"] = E("easytier_watchdog_interval").value || "2";
     var mode = $("input[name='easytier_mode']:checked").val() || "simple";
     data["easytier_mode"] = mode;
 
@@ -386,6 +395,7 @@ function get_form_fields() {
         data["easytier_ipv4"] = E("easytier_ipv4").value.trim();
         data["easytier_port"] = E("easytier_port").value.trim() || "11010";
         data["easytier_proxy_network"] = E("easytier_proxy_network").value.trim();
+        data["easytier_accept_routes"] = E("easytier_accept_routes").checked ? "1" : "0";
         
         var peers = E("easytier_peers").value.trim();
         data["easytier_peers"] = peers;
@@ -406,7 +416,19 @@ function get_form_fields() {
     return data;
 }
 
+var is_submitting = false;
+
+function set_btn_state(disabled) {
+    $("#btn_apply, #btn_start, #btn_stop, #btn_restart").prop("disabled", disabled);
+    if (disabled) {
+        $("#btn_apply, #btn_start, #btn_stop, #btn_restart").css("opacity", "0.6");
+    } else {
+        $("#btn_apply, #btn_start, #btn_stop, #btn_restart").css("opacity", "1.0");
+    }
+}
+
 function save_and_apply(action) {
+    if (is_submitting) return;
     var fields = get_form_fields();
     if (!fields) return;
 
@@ -414,6 +436,9 @@ function save_and_apply(action) {
         action = fields["easytier_enable"] === "1" ? "restart" : "stop";
     }
 
+    is_submitting = true;
+    set_btn_state(true);
+
     var postData = {
         "id": parseInt(Math.random() * 100000000),
         "method": "easytier_config.sh",
@@ -431,14 +456,21 @@ function save_and_apply(action) {
             get_log(0);
         },
         error: function() {
+            is_submitting = false;
+            set_btn_state(false);
             alert("请求提交失败或超时！");
         }
     });
 }
 
 function service_action(action) {
+    if (is_submitting) return;
     var fields = get_form_fields();
     if (!fields) return;
+
+    is_submitting = true;
+    set_btn_state(true);
+
     var postData = {
         "id": parseInt(Math.random() * 100000000),
         "method": "easytier_config.sh",
@@ -455,6 +487,8 @@ function service_action(action) {
             get_log(0);
         },
         error: function() {
+            is_submitting = false;
+            set_btn_state(false);
             alert("执行操作失败！");
         }
     });
@@ -468,11 +502,17 @@ function generate_toml_from_simple() {
     var isDhcp = E("easytier_dhcp").checked;
     var ipv4 = E("easytier_ipv4").value.trim();
     var proxyNet = E("easytier_proxy_network").value.trim();
+    var acceptRoutes = E("easytier_accept_routes").checked;
     var peers = E("easytier_peers").value.trim().split("\n");
 
     var toml = "# 从简易向导转换生成的 EasyTier 配置\n";
     toml += 'instance_name = "' + node + '"\n';
     toml += 'hostname = "' + node + '"\n\n';
+
+    if (!acceptRoutes) {
+        toml += "# 声明手动路由为空，禁用自动接收对端子网路由，避免二级路由/上级网段冲突\n";
+        toml += "routes = []\n\n";
+    }
 
     if (isDhcp || !ipv4) {
         toml += "dhcp = true\n";
@@ -622,6 +662,8 @@ function showWBLoadingBar() {
 }
 
 function hideWBLoadingBar() {
+    is_submitting = false;
+    set_btn_state(false);
     E("LoadingBar").style.visibility = "hidden";
     E("ok_button").style.visibility = "hidden";
     if (refresh_flag == 1) refreshpage();
@@ -742,6 +784,18 @@ function count_down_close() {
                                                         </td>
                                                     </tr>
                                                     <tr>
+                                                        <th>看门狗进程守护</th>
+                                                        <td>
+                                                            <input type="checkbox" id="easytier_watchdog" style="vertical-align:middle;">
+                                                            <span style="color:#a0aeb5; margin-left:6px; vertical-align:middle;">服务异常退出时由系统计划任务自动重新拉起，检测周期:</span>
+                                                            <select id="easytier_watchdog_interval" class="input_text" style="width:90px; margin-left:6px; vertical-align:middle;">
+                                                                <option value="1">每 1 分钟</option>
+                                                                <option value="2" selected>每 2 分钟</option>
+                                                                <option value="5">每 5 分钟</option>
+                                                            </select>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
                                                         <th>配置模式</th>
                                                         <td>
                                                             <label style="cursor:pointer; margin-right:20px; vertical-align:middle;">
@@ -794,10 +848,23 @@ function count_down_close() {
                                                             </td>
                                                         </tr>
                                                         <tr>
-                                                            <th>局域网网段代理 (子网转发)</th>
-                                                            <td>
+                                                            <th style="vertical-align:top; padding-top:10px;">局域网网段代理 (子网转发)</th>
+                                                            <td style="white-space:normal;">
                                                                 <input type="text" id="easytier_proxy_network" class="input_text" style="width:180px;" placeholder="例如: 192.168.50.0/24" />
                                                                 <span class="inline_highlight">💡 广播局域网网段，异地设备连入后可直连家中 NAS、台式机等所有内网设备</span>
+                                                                <div style="color:#ffcc00; margin-top:4px; font-size:11px; line-height:16px;">
+                                                                    ⚠️ <b>避坑防断网提示</b>：严禁与本路由器的上级 WAN/光猫网段（如 192.168.1.0/24）或对端其他节点广播的网段重叠！否则会导致默认网关路由被覆盖，造成全网断网并引发服务被系统终止。
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr>
+                                                            <th style="vertical-align:top; padding-top:10px;">接收对端子网路由</th>
+                                                            <td style="white-space:normal;">
+                                                                <input type="checkbox" id="easytier_accept_routes" checked style="vertical-align:middle;">
+                                                                <span style="color:#a0aeb5; margin-left:6px; vertical-align:middle;">自动学习并接收其他节点广播的子网路由（默认开启）</span>
+                                                                <div style="color:#00ffe4; margin-top:4px; font-size:11px; line-height:16px;">
+                                                                    💡 <b>二级路由/光猫下挂场景（必看）</b>：若上级光猫或其他设备广播了光猫网段（如 192.168.1.0/24），请<b>取消勾选此项</b>！取消后本路由器仅向外广播 192.168.50.0/24，拒收对端子网，彻底避免物理 WAN 口网关冲突断网。
+                                                                </div>
                                                             </td>
                                                         </tr>
                                                         <tr>
@@ -877,7 +944,7 @@ function count_down_close() {
 
                                         <!-- 底部操作按钮 -->
                                         <div class="apply_gen" style="margin-top:16px;">
-                                            <input class="button_gen" onClick="save_and_apply()" type="button" value="保存并应用" style="font-size:14px; height:33px; width:130px;" />
+                                            <input class="button_gen" id="btn_apply" onClick="save_and_apply()" type="button" value="保存并应用" style="font-size:14px; height:33px; width:130px;" />
                                         </div>
 
                                     </td>

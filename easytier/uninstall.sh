@@ -11,7 +11,8 @@ alias echo_date='echo 【$(date +"%Y年%m月%d日 %H:%M:%S")】'
 echo_date "======================================================="
 echo_date "开始卸载 EasyTier 插件..."
 
-# 1. 停止运行中的服务并清理防火墙
+# 1. 停止运行中的服务并清理防火墙与计划任务
+cru d easytier_watchdog >/dev/null 2>&1
 if [ -f "${KS_DIR}/scripts/easytier_config.sh" ]; then
     echo_date "⏹️ 正在停止 EasyTier 服务与清理网络规则..."
     sh ${KS_DIR}/scripts/easytier_config.sh stop >/dev/null 2>&1
@@ -46,6 +47,9 @@ dbus remove softcenter_module_easytier_homeurl
 dbus remove easytier_version
 dbus remove easytier_enable
 dbus remove easytier_autostart
+dbus remove easytier_watchdog
+dbus remove easytier_watchdog_interval
+dbus remove easytier_accept_routes
 dbus remove easytier_mode
 dbus remove easytier_node_name
 dbus remove easytier_network_name
