@@ -266,10 +266,82 @@ setup_firewall() {
     echo_date "✅ 防火墙与 NAT 转发规则配置完成" >> $LOG_FILE
 }
 
-# 5. 清理防火墙规则
+# 5. 策略路由与子网黑名单保护 (隔离上级光猫网段与黑名单网段，避免劫持 WAN 网关)
+get_wan_subnet() {
+    local ip=$(nvram get wan0_ipaddr 2>/dev/null)
+    [ -z "$ip" ] && ip=$(nvram get wan_ipaddr 2>/dev/null)
+    if [ -n "$ip" ]; then
+        echo "$ip" | awk -F. '{printf "%d.%d.%d.0/24", $1, $2, $3}'
+    fi
+}
+
+get_wan_if() {
+    local ifname=$(nvram get wan0_ifname 2>/dev/null)
+    [ -z "$ifname" ] && ifname=$(nvram get wan_ifname 2>/dev/null)
+    [ -z "$ifname" ] && ifname=$(ip route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev") print $(i+1)}')
+    echo "$ifname"
+}
+
+apply_route_blacklist() {
+    local ROUTE_MODE="${easytier_route_mode:-blacklist}"
+    local WAN_SUBNET=$(get_wan_subnet)
+    local WAN_IF=$(get_wan_if)
+
+    # 1. 始终硬核锁死物理 WAN 口网段，确保默认网关和光猫绝不被 tun 劫持
+    if [ -n "$WAN_SUBNET" ] && [ -n "$WAN_IF" ]; then
+        ip route replace "$WAN_SUBNET" dev "$WAN_IF" table 188 2>/dev/null
+        while ip rule list | grep -q "100:"; do
+            ip rule del pref 100 2>/dev/null || break
+        done
+        ip rule add to "$WAN_SUBNET" table 188 pref 100 2>/dev/null
+        ip route del "$WAN_SUBNET" dev tun0 2>/dev/null
+        echo_date "🛡️ [策略路由] 已硬核锁定物理 WAN 网段 ($WAN_SUBNET -> $WAN_IF)，免疫任何路由劫持" >> $LOG_FILE
+    fi
+
+    # 2. 如果开启了黑名单模式，额外屏蔽用户指定的其他黑名单网段
+    if [ "$ROUTE_MODE" = "blacklist" ]; then
+        local BL_RAW=""
+        if [ -n "$easytier_route_blacklist_encoded" ]; then
+            BL_RAW=$(echo "$easytier_route_blacklist_encoded" | base64 -d 2>/dev/null)
+        else
+            BL_RAW="$easytier_route_blacklist"
+        fi
+
+        # 默认黑名单兜底
+        [ -z "$BL_RAW" ] && [ -n "$WAN_SUBNET" ] && BL_RAW="$WAN_SUBNET"
+
+        if [ -n "$BL_RAW" ]; then
+            echo "$BL_RAW" | tr ',;' '\n' | while read -r cidr || [ -n "$cidr" ]; do
+                cidr=$(echo "$cidr" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+                [ -z "$cidr" ] && continue
+                echo "$cidr" | grep -q '^#' && continue
+                [ "$cidr" = "$WAN_SUBNET" ] && continue
+
+                ip rule del to "$cidr" blackhole pref 101 2>/dev/null
+                ip rule add to "$cidr" blackhole pref 101 2>/dev/null || ip rule add to "$cidr" unreachable pref 101 2>/dev/null
+                ip route del "$cidr" dev tun0 2>/dev/null
+                echo_date "🚫 [黑名单拦截] 已将黑名单子网 $cidr 设为不可达黑洞" >> $LOG_FILE
+            done
+        fi
+    fi
+}
+
+clean_route_blacklist() {
+    ip route flush table 188 2>/dev/null
+    while ip rule list | grep -q "100:"; do
+        ip rule del pref 100 2>/dev/null || break
+    done
+    while ip rule list | grep -q "101:"; do
+        ip rule del pref 101 2>/dev/null || break
+    done
+}
+
+# 6. 清理防火墙规则
 clean_firewall() {
     local PORT="${easytier_port:-11010}"
     echo_date "🧹 正在清理防火墙规则..." >> $LOG_FILE
+
+    clean_route_blacklist
 
     iptables -D INPUT -i tun+ -j ACCEPT 2>/dev/null
     iptables -D FORWARD -i br0 -o tun+ -j ACCEPT 2>/dev/null
@@ -320,6 +392,7 @@ start_easytier() {
 
     if kill -0 $NEW_PID 2>/dev/null; then
         setup_firewall
+        apply_route_blacklist
         echo_date "✅ EasyTier 启动成功！进程 PID: $NEW_PID" >> $LOG_FILE
         dbus set easytier_enable="1"
         setup_watchdog
@@ -413,6 +486,9 @@ check_watchdog() {
         echo_date "⚠️ [Watchdog 守护] 检测到 EasyTier 进程异常退出，正在自动拉起重启..." >> $LOG_FILE
         echo_date "⚠️ [Watchdog 守护] 检测到 EasyTier 进程异常退出，正在自动拉起重启..." >> $RUNTIME_LOG
         start_easytier
+    else
+        # 巡检黑名单策略与路由清理
+        apply_route_blacklist
     fi
 }
 

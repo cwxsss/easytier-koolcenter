@@ -231,7 +231,7 @@ function get_dbus_data() {
 
 function conf2obj() {
     // 双版本号展示 (插件版本与官方核心版本)
-    var pVer = dbus["easytier_plugin_version"] || "1.1.0";
+    var pVer = dbus["easytier_plugin_version"] || "1.2.0";
     var cVer = dbus["easytier_core_version"] || dbus["easytier_version"] || "2.6.4";
     if (E("easytier_plugin_ver")) E("easytier_plugin_ver").innerHTML = "v" + pVer;
     if (E("easytier_core_ver")) E("easytier_core_ver").innerHTML = "(Core v" + cVer + ")";
@@ -277,11 +277,33 @@ function conf2obj() {
         }
     }
 
-    // 对端子网接收策略与白名单
-    var routeMode = dbus["easytier_route_mode"] || (dbus["easytier_accept_routes"] === "0" ? "none" : "all");
+    // 对端子网接收策略与黑白名单
+    var routeMode = dbus["easytier_route_mode"] || "blacklist";
     E("easytier_route_mode").value = routeMode;
     toggle_route_mode(routeMode);
 
+    // 黑名单初始化 (若为空则自动获取上级 WAN 网段填入，如 192.168.1.0/24)
+    var defaultWanSubnet = "";
+    var wanIp = '<% nvram_get("wan0_ipaddr"); %>' || '<% nvram_get("wan_ipaddr"); %>';
+    if (wanIp) {
+        var wparts = wanIp.split('.');
+        if (wparts.length === 4) defaultWanSubnet = wparts[0] + '.' + wparts[1] + '.' + wparts[2] + '.0/24';
+    }
+    if (!defaultWanSubnet) defaultWanSubnet = "192.168.1.0/24";
+
+    if (dbus["easytier_route_blacklist_encoded"]) {
+        try {
+            E("easytier_route_blacklist").value = decodeURIComponent(escape(atob(dbus["easytier_route_blacklist_encoded"])));
+        } catch(e) {
+            E("easytier_route_blacklist").value = dbus["easytier_route_blacklist"] || defaultWanSubnet;
+        }
+    } else if (dbus["easytier_route_blacklist"]) {
+        E("easytier_route_blacklist").value = dbus["easytier_route_blacklist"];
+    } else {
+        E("easytier_route_blacklist").value = defaultWanSubnet;
+    }
+
+    // 白名单初始化
     if (dbus["easytier_route_whitelist_encoded"]) {
         try {
             E("easytier_route_whitelist").value = decodeURIComponent(escape(atob(dbus["easytier_route_whitelist_encoded"])));
@@ -318,9 +340,14 @@ function conf2obj() {
 }
 
 function toggle_route_mode(mode) {
-    if (mode === "whitelist") {
+    if (mode === "blacklist") {
+        $("#route_blacklist_tr").show();
+        $("#route_whitelist_tr").hide();
+    } else if (mode === "whitelist") {
+        $("#route_blacklist_tr").hide();
         $("#route_whitelist_tr").show();
     } else {
+        $("#route_blacklist_tr").hide();
         $("#route_whitelist_tr").hide();
     }
 }
@@ -414,12 +441,19 @@ function get_form_fields() {
     data["easytier_proxy_network"] = E("easytier_proxy_network").value.trim();
     var routeMode = E("easytier_route_mode").value;
     data["easytier_route_mode"] = routeMode;
+
+    var rBlacklist = E("easytier_route_blacklist").value.trim();
+    data["easytier_route_blacklist"] = rBlacklist;
+    try {
+        data["easytier_route_blacklist_encoded"] = btoa(unescape(encodeURIComponent(rBlacklist)));
+    } catch(e) {}
+
     var rWhitelist = E("easytier_route_whitelist").value.trim();
     data["easytier_route_whitelist"] = rWhitelist;
     try {
         data["easytier_route_whitelist_encoded"] = btoa(unescape(encodeURIComponent(rWhitelist)));
     } catch(e) {}
-    data["easytier_accept_routes"] = (routeMode === "all") ? "1" : "0";
+    data["easytier_accept_routes"] = (routeMode === "none") ? "0" : "1";
     
     var peers = E("easytier_peers").value.trim();
     data["easytier_peers"] = peers;
@@ -527,6 +561,7 @@ function generate_toml_from_simple(silent) {
     var ipv4 = E("easytier_ipv4").value.trim();
     var proxyNet = E("easytier_proxy_network").value.trim();
     var routeMode = E("easytier_route_mode").value;
+    var rBlacklist = E("easytier_route_blacklist").value.trim();
     var rWhitelist = E("easytier_route_whitelist").value.trim();
     var peers = E("easytier_peers").value.trim().split("\n");
 
@@ -549,6 +584,8 @@ function generate_toml_from_simple(silent) {
             }
         }
         toml += "]\n\n";
+    } else if (routeMode === "blacklist") {
+        toml += "# 黑名单模式: 自动接收所有对端远端子网，系统已自动隔离黑名单与 WAN 网段\n\n";
     }
 
     if (isDhcp || !ipv4) {
@@ -757,7 +794,7 @@ function count_down_close() {
                                         <div>&nbsp;</div>
                                         <div class="formfonttitle">
                                             EasyTier 
-                                            <span id="easytier_plugin_ver" style="font-size:13px; color:#00ffe4; font-weight:normal; margin-left:8px;">v1.1.0</span>
+                                            <span id="easytier_plugin_ver" style="font-size:13px; color:#00ffe4; font-weight:normal; margin-left:8px;">v1.2.0</span>
                                             <span id="easytier_core_ver" style="font-size:12px; color:#a0aeb5; font-weight:normal; margin-left:6px;">(Core v2.6.4)</span>
                                             <span style="font-size:12px; color:#62727b; font-weight:normal; margin-left:10px;">去中心化 Mesh VPN 异地组网工具</span>
                                         </div>
@@ -882,18 +919,28 @@ function count_down_close() {
                                                         <tr>
                                                             <th>对端子网接收策略</th>
                                                             <td>
-                                                                <select id="easytier_route_mode" class="input_text" onchange="on_route_mode_change();" style="width:260px; vertical-align:middle;">
-                                                                    <option value="all">自动接收全部对端子网 (默认)</option>
-                                                                    <option value="whitelist">白名单模式 (仅允许指定子网，推荐)</option>
+                                                                <select id="easytier_route_mode" class="input_text" onchange="on_route_mode_change();" style="width:280px; vertical-align:middle;">
+                                                                    <option value="blacklist" selected>黑名单模式 (自动接收全部，排除黑名单，推荐)</option>
+                                                                    <option value="whitelist">白名单模式 (仅接收指定子网)</option>
+                                                                    <option value="all">全自动接收 (接收全部对端子网)</option>
                                                                     <option value="none">全部拒收 (仅对外广播本路由内网)</option>
                                                                 </select>
                                                                 <span class="inline_tip">控制是否学习并写入其他节点广播的子网路由</span>
                                                             </td>
                                                         </tr>
-                                                        <tr id="route_whitelist_tr" style="display:none;">
-                                                            <th style="vertical-align:top; padding-top:10px;">子网白名单 (Routes)</th>
+                                                        <tr id="route_blacklist_tr">
+                                                            <th style="vertical-align:top; padding-top:10px;">子网黑名单 (Blacklist)</th>
                                                             <td style="white-space:normal;">
-                                                                <textarea id="easytier_route_whitelist" style="width:98%; height:60px; font-family:'Consolas',monospace; font-size:12px; line-height:16px;" class="input_text" placeholder="例如: 172.16.0.0/16&#10;10.3.0.0/16"></textarea>
+                                                                <textarea id="easytier_route_blacklist" style="width:98%; height:55px; font-family:'Consolas',monospace; font-size:12px; line-height:16px;" class="input_text" placeholder="例如: 192.168.1.0/24"></textarea>
+                                                                <div style="color:#a0aeb5; margin-top:4px; font-size:11px;">
+                                                                    黑名单中的子网（如上级光猫 192.168.1.0/24）将被隔离拦截，其余所有远端子网均自动接收互通。
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        <tr id="route_whitelist_tr" style="display:none;">
+                                                            <th style="vertical-align:top; padding-top:10px;">子网白名单 (Whitelist)</th>
+                                                            <td style="white-space:normal;">
+                                                                <textarea id="easytier_route_whitelist" style="width:98%; height:55px; font-family:'Consolas',monospace; font-size:12px; line-height:16px;" class="input_text" placeholder="例如: 172.16.0.0/16&#10;10.3.0.0/16"></textarea>
                                                                 <div style="color:#a0aeb5; margin-top:4px; font-size:11px;">
                                                                     仅学习并写入上方指定的远端子网（每行一个），未指定的远端子网将被丢弃以避免网关冲突。
                                                                 </div>

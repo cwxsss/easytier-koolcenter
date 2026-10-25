@@ -54,6 +54,8 @@ dbus remove easytier_watchdog_val
 dbus remove easytier_watchdog_unit
 dbus remove easytier_watchdog_interval
 dbus remove easytier_route_mode
+dbus remove easytier_route_blacklist
+dbus remove easytier_route_blacklist_encoded
 dbus remove easytier_route_whitelist
 dbus remove easytier_route_whitelist_encoded
 dbus remove easytier_accept_routes
