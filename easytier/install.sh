@@ -6,7 +6,7 @@
 # =======================================================
 
 MODULE="easytier"
-PLUGIN_VERSION="1.2.0"
+PLUGIN_VERSION="1.2.1"
 CORE_VERSION="2.6.4"
 VERSION="$PLUGIN_VERSION"
 KS_DIR="/koolshare"
@@ -156,7 +156,7 @@ register_dbus() {
     [ -z "$(dbus get easytier_watchdog)" ] && dbus set easytier_watchdog="1"
     [ -z "$(dbus get easytier_watchdog_val)" ] && dbus set easytier_watchdog_val="5"
     [ -z "$(dbus get easytier_watchdog_unit)" ] && dbus set easytier_watchdog_unit="min"
-    [ -z "$(dbus get easytier_route_mode)" ] && dbus set easytier_route_mode="blacklist"
+    [ -z "$(dbus get easytier_route_mode)" ] && dbus set easytier_route_mode="all"
     local WAN_IP=$(nvram get wan0_ipaddr 2>/dev/null)
     [ -z "$WAN_IP" ] && WAN_IP=$(nvram get wan_ipaddr 2>/dev/null)
     local DEF_WAN_SUBNET="192.168.1.0/24"

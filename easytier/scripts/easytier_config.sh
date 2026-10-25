@@ -283,7 +283,7 @@ get_wan_if() {
 }
 
 apply_route_blacklist() {
-    local ROUTE_MODE="${easytier_route_mode:-blacklist}"
+    local ROUTE_MODE="${easytier_route_mode:-all}"
     local WAN_SUBNET=$(get_wan_subnet)
     local WAN_IF=$(get_wan_if)
 

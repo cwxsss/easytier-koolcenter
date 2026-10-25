@@ -231,7 +231,7 @@ function get_dbus_data() {
 
 function conf2obj() {
     // 双版本号展示 (插件版本与官方核心版本)
-    var pVer = dbus["easytier_plugin_version"] || "1.2.0";
+    var pVer = dbus["easytier_plugin_version"] || "1.2.1";
     var cVer = dbus["easytier_core_version"] || dbus["easytier_version"] || "2.6.4";
     if (E("easytier_plugin_ver")) E("easytier_plugin_ver").innerHTML = "v" + pVer;
     if (E("easytier_core_ver")) E("easytier_core_ver").innerHTML = "(Core v" + cVer + ")";
@@ -277,8 +277,8 @@ function conf2obj() {
         }
     }
 
-    // 对端子网接收策略与黑白名单
-    var routeMode = dbus["easytier_route_mode"] || "blacklist";
+    // 对端子网接收策略与黑白名单 (默认全自动接收)
+    var routeMode = dbus["easytier_route_mode"] || "all";
     E("easytier_route_mode").value = routeMode;
     toggle_route_mode(routeMode);
 
@@ -794,7 +794,7 @@ function count_down_close() {
                                         <div>&nbsp;</div>
                                         <div class="formfonttitle">
                                             EasyTier 
-                                            <span id="easytier_plugin_ver" style="font-size:13px; color:#00ffe4; font-weight:normal; margin-left:8px;">v1.2.0</span>
+                                            <span id="easytier_plugin_ver" style="font-size:13px; color:#00ffe4; font-weight:normal; margin-left:8px;">v1.2.1</span>
                                             <span id="easytier_core_ver" style="font-size:12px; color:#a0aeb5; font-weight:normal; margin-left:6px;">(Core v2.6.4)</span>
                                             <span style="font-size:12px; color:#62727b; font-weight:normal; margin-left:10px;">去中心化 Mesh VPN 异地组网工具</span>
                                         </div>
@@ -920,15 +920,15 @@ function count_down_close() {
                                                             <th>对端子网接收策略</th>
                                                             <td>
                                                                 <select id="easytier_route_mode" class="input_text" onchange="on_route_mode_change();" style="width:280px; vertical-align:middle;">
-                                                                    <option value="blacklist" selected>黑名单模式 (自动接收全部，排除黑名单，推荐)</option>
-                                                                    <option value="whitelist">白名单模式 (仅接收指定子网)</option>
-                                                                    <option value="all">全自动接收 (接收全部对端子网)</option>
+                                                                    <option value="all" selected>全自动接收 (自动接收全部对端子网，默认)</option>
+                                                                    <option value="blacklist">黑名单模式 (自动接收全部，排除指定黑名单)</option>
+                                                                    <option value="whitelist">白名单模式 (仅允许指定子网)</option>
                                                                     <option value="none">全部拒收 (仅对外广播本路由内网)</option>
                                                                 </select>
                                                                 <span class="inline_tip">控制是否学习并写入其他节点广播的子网路由</span>
                                                             </td>
                                                         </tr>
-                                                        <tr id="route_blacklist_tr">
+                                                        <tr id="route_blacklist_tr" style="display:none;">
                                                             <th style="vertical-align:top; padding-top:10px;">子网黑名单 (Blacklist)</th>
                                                             <td style="white-space:normal;">
                                                                 <textarea id="easytier_route_blacklist" style="width:98%; height:55px; font-family:'Consolas',monospace; font-size:12px; line-height:16px;" class="input_text" placeholder="例如: 192.168.1.0/24"></textarea>
