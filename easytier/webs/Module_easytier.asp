@@ -230,26 +230,26 @@ function get_dbus_data() {
 }
 
 function conf2obj() {
-    if (dbus["easytier_version"]) {
-        E("easytier_version").innerHTML = "v" + dbus["easytier_version"];
-    }
+    // 双版本号展示 (插件版本与官方核心版本)
+    var pVer = dbus["easytier_plugin_version"] || "1.1.0";
+    var cVer = dbus["easytier_core_version"] || dbus["easytier_version"] || "2.6.4";
+    if (E("easytier_plugin_ver")) E("easytier_plugin_ver").innerHTML = "v" + pVer;
+    if (E("easytier_core_ver")) E("easytier_core_ver").innerHTML = "(Core v" + cVer + ")";
 
     // 基本开关
     E("easytier_enable").checked = (dbus["easytier_enable"] === "1");
     E("easytier_autostart").checked = (dbus["easytier_autostart"] !== "0");
     E("easytier_watchdog").checked = (dbus["easytier_watchdog"] !== "0");
-    if (dbus["easytier_watchdog_interval"]) {
-        E("easytier_watchdog_interval").value = dbus["easytier_watchdog_interval"];
-    }
+    E("easytier_watchdog_val").value = dbus["easytier_watchdog_val"] || dbus["easytier_watchdog_interval"] || "5";
+    E("easytier_watchdog_unit").value = dbus["easytier_watchdog_unit"] || "min";
 
-    // 模式
+    // 模式与 Tab 对应
     var mode = dbus["easytier_mode"] || "simple";
-    if (mode === "custom") {
-        E("mode_custom").checked = true;
-    } else {
-        E("mode_simple").checked = true;
-    }
-    toggle_mode_display(mode);
+    current_tab = (mode === "custom") ? 2 : 1;
+    $(".tab_btn").removeClass("tab_btn_active");
+    $("#tab_btn_" + current_tab).addClass("tab_btn_active");
+    $(".tab_page").hide();
+    $("#tab_page_" + current_tab).show();
 
     // 简易模式参数
     if (dbus["easytier_node_name"]) E("easytier_node_name").value = dbus["easytier_node_name"];
@@ -317,21 +317,6 @@ function conf2obj() {
     }
 }
 
-function toggle_mode_display(mode) {
-    if (mode === "custom") {
-        $("#simple_settings_group").hide();
-        $("#custom_settings_group").show();
-    } else {
-        $("#simple_settings_group").show();
-        $("#custom_settings_group").hide();
-    }
-}
-
-function on_mode_change() {
-    var mode = $("input[name='easytier_mode']:checked").val();
-    toggle_mode_display(mode);
-}
-
 function toggle_route_mode(mode) {
     if (mode === "whitelist") {
         $("#route_whitelist_tr").show();
@@ -390,13 +375,19 @@ function check_status() {
 }
 
 function switch_tab(tabIndex) {
+    var prevTab = current_tab;
     current_tab = tabIndex;
     $(".tab_btn").removeClass("tab_btn_active");
     $("#tab_btn_" + tabIndex).addClass("tab_btn_active");
     $(".tab_page").hide();
     $("#tab_page_" + tabIndex).show();
 
-    if (tabIndex === 3) {
+    if (tabIndex === 2) {
+        if (prevTab === 1 || !E("easytier_config_content").value.trim()) {
+            // 从基本配置切换到高级 TOML 配置时，自动从简易向导生成 TOML 写入到框中
+            generate_toml_from_simple(true);
+        }
+    } else if (tabIndex === 3) {
         fetch_cli_info('peer');
     } else if (tabIndex === 4) {
         fetch_runtime_log();
@@ -408,43 +399,44 @@ function get_form_fields() {
     data["easytier_enable"] = E("easytier_enable").checked ? "1" : "0";
     data["easytier_autostart"] = E("easytier_autostart").checked ? "1" : "0";
     data["easytier_watchdog"] = E("easytier_watchdog").checked ? "1" : "0";
-    data["easytier_watchdog_interval"] = E("easytier_watchdog_interval").value || "2";
-    var mode = $("input[name='easytier_mode']:checked").val() || "simple";
+    data["easytier_watchdog_val"] = E("easytier_watchdog_val").value.trim() || "5";
+    data["easytier_watchdog_unit"] = E("easytier_watchdog_unit").value || "min";
+
+    var mode = (current_tab === 2) ? "custom" : "simple";
     data["easytier_mode"] = mode;
 
-    if (mode === "simple") {
-        data["easytier_node_name"] = E("easytier_node_name").value.trim();
-        data["easytier_network_name"] = E("easytier_network_name").value.trim();
-        data["easytier_network_secret"] = E("easytier_network_secret").value.trim();
-        data["easytier_dhcp"] = E("easytier_dhcp").checked ? "1" : "0";
-        data["easytier_ipv4"] = E("easytier_ipv4").value.trim();
-        data["easytier_port"] = E("easytier_port").value.trim() || "11010";
-        data["easytier_proxy_network"] = E("easytier_proxy_network").value.trim();
-        var routeMode = E("easytier_route_mode").value;
-        data["easytier_route_mode"] = routeMode;
-        var rWhitelist = E("easytier_route_whitelist").value.trim();
-        data["easytier_route_whitelist"] = rWhitelist;
-        try {
-            data["easytier_route_whitelist_encoded"] = btoa(unescape(encodeURIComponent(rWhitelist)));
-        } catch(e) {}
-        data["easytier_accept_routes"] = (routeMode === "all") ? "1" : "0";
-        
-        var peers = E("easytier_peers").value.trim();
-        data["easytier_peers"] = peers;
-        try {
-            data["easytier_peers_encoded"] = btoa(unescape(encodeURIComponent(peers)));
-        } catch(e) {}
-    } else {
-        var tomlContent = E("easytier_config_content").value.trim();
-        if (!tomlContent) {
-            alert("高级模式下，配置文件内容不能为空！");
-            return null;
-        }
-        data["easytier_config_content"] = tomlContent;
-        try {
-            data["easytier_config_content_encoded"] = btoa(unescape(encodeURIComponent(tomlContent)));
-        } catch(e) {}
+    data["easytier_node_name"] = E("easytier_node_name").value.trim();
+    data["easytier_network_name"] = E("easytier_network_name").value.trim();
+    data["easytier_network_secret"] = E("easytier_network_secret").value.trim();
+    data["easytier_dhcp"] = E("easytier_dhcp").checked ? "1" : "0";
+    data["easytier_ipv4"] = E("easytier_ipv4").value.trim();
+    data["easytier_port"] = E("easytier_port").value.trim() || "11010";
+    data["easytier_proxy_network"] = E("easytier_proxy_network").value.trim();
+    var routeMode = E("easytier_route_mode").value;
+    data["easytier_route_mode"] = routeMode;
+    var rWhitelist = E("easytier_route_whitelist").value.trim();
+    data["easytier_route_whitelist"] = rWhitelist;
+    try {
+        data["easytier_route_whitelist_encoded"] = btoa(unescape(encodeURIComponent(rWhitelist)));
+    } catch(e) {}
+    data["easytier_accept_routes"] = (routeMode === "all") ? "1" : "0";
+    
+    var peers = E("easytier_peers").value.trim();
+    data["easytier_peers"] = peers;
+    try {
+        data["easytier_peers_encoded"] = btoa(unescape(encodeURIComponent(peers)));
+    } catch(e) {}
+
+    var tomlContent = E("easytier_config_content").value.trim();
+    if (mode === "custom" && !tomlContent) {
+        alert("高级模式下，配置文件内容不能为空！");
+        return null;
     }
+    data["easytier_config_content"] = tomlContent;
+    try {
+        data["easytier_config_content_encoded"] = btoa(unescape(encodeURIComponent(tomlContent)));
+    } catch(e) {}
+
     return data;
 }
 
@@ -526,7 +518,7 @@ function service_action(action) {
     });
 }
 
-function generate_toml_from_simple() {
+function generate_toml_from_simple(silent) {
     var node = E("easytier_node_name").value.trim() || "ROG-GS7";
     var netName = E("easytier_network_name").value.trim() || "default_net";
     var secret = E("easytier_network_secret").value.trim();
@@ -538,7 +530,9 @@ function generate_toml_from_simple() {
     var rWhitelist = E("easytier_route_whitelist").value.trim();
     var peers = E("easytier_peers").value.trim().split("\n");
 
-    var toml = "# 从简易向导转换生成的 EasyTier 配置\n";
+    var toml = "# ==========================================\n";
+    toml += "# EasyTier 配置文件 (由 KoolCenter 自动生成)\n";
+    toml += "# ==========================================\n";
     toml += 'instance_name = "' + node + '"\n';
     toml += 'hostname = "' + node + '"\n\n';
 
@@ -588,9 +582,9 @@ function generate_toml_from_simple() {
     }
 
     E("easytier_config_content").value = toml;
-    E("mode_custom").checked = true;
-    toggle_mode_display("custom");
-    alert("已将简易配置转换为 TOML 格式！您可以进行自由编辑与深度定制。");
+    if (!silent) {
+        alert("已将当前简易向导参数转换为 TOML 配置！您可以自由编辑与深度定制。");
+    }
 }
 
 function clear_toml_content() {
@@ -762,8 +756,10 @@ function count_down_close() {
                                     <td bgcolor="#4D595D" colspan="3" valign="top">
                                         <div>&nbsp;</div>
                                         <div class="formfonttitle">
-                                            EasyTier <span id="easytier_version" style="font-size:14px; color:#00ffe4; font-weight:normal;"></span>
-                                            <span style="font-size:12px; color:#a0aeb5; font-weight:normal; margin-left:10px;">去中心化 Mesh VPN 异地组网工具</span>
+                                            EasyTier 
+                                            <span id="easytier_plugin_ver" style="font-size:13px; color:#00ffe4; font-weight:normal; margin-left:8px;">v1.1.0</span>
+                                            <span id="easytier_core_ver" style="font-size:12px; color:#a0aeb5; font-weight:normal; margin-left:6px;">(Core v2.6.4)</span>
+                                            <span style="font-size:12px; color:#62727b; font-weight:normal; margin-left:10px;">去中心化 Mesh VPN 异地组网工具</span>
                                         </div>
                                         <div style="float: right; width: 15px; height: 25px; margin-top: -24px">
                                             <img id="return_btn" alt="" onclick="reload_Soft_Center();" align="right" style="cursor: pointer; position: absolute; margin-left: -30px; margin-top: -25px;" title="返回软件中心" src="/images/backprev.png" onmouseover="this.src='/images/backprevclick.png'" onmouseout="this.src='/images/backprev.png'" />
@@ -774,7 +770,6 @@ function count_down_close() {
                                         <div class="SimpleNote">
                                             <span style="margin-right:12px;"><a href="https://github.com/EasyTier/EasyTier" target="_blank"><em>EasyTier</em></a> 是基于 Rust 打造的安全去中心化 Full-Mesh 组网方案。</span>
                                             <a href="https://github.com/EasyTier/EasyTier" target="_blank" class="et_btn">项目官网 ↗</a>
-                                            <a href="https://easytier.cn/web/index.html#/config_generator" target="_blank" class="et_btn">官方配置生成器 ↗</a>
                                             <a href="javascript:void(0);" onclick="get_log(1)" class="et_btn">插件日志</a>
                                             <a href="javascript:void(0);" onclick="clear_runtime_log()" class="et_btn et_btn_danger">清空运行日志</a>
                                         </div>
@@ -830,25 +825,12 @@ function count_down_close() {
                                                         <th>看门狗进程守护</th>
                                                         <td>
                                                             <input type="checkbox" id="easytier_watchdog" style="vertical-align:middle;">
-                                                            <span style="color:#a0aeb5; margin-left:6px; vertical-align:middle;">服务异常退出时由系统计划任务自动重新拉起，检测周期:</span>
-                                                            <select id="easytier_watchdog_interval" class="input_text" style="width:90px; margin-left:6px; vertical-align:middle;">
-                                                                <option value="1">每 1 分钟</option>
-                                                                <option value="2" selected>每 2 分钟</option>
-                                                                <option value="5">每 5 分钟</option>
+                                                            <span style="color:#a0aeb5; margin-left:6px; vertical-align:middle;">异常退出时自动拉起，检测间隔: 每</span>
+                                                            <input type="text" id="easytier_watchdog_val" class="input_text" style="width:45px; text-align:center; margin:0 4px; vertical-align:middle;" value="5" />
+                                                            <select id="easytier_watchdog_unit" class="input_text" style="width:65px; vertical-align:middle;">
+                                                                <option value="min" selected>分钟</option>
+                                                                <option value="hour">小时</option>
                                                             </select>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <th>配置模式</th>
-                                                        <td>
-                                                            <label style="cursor:pointer; margin-right:20px; vertical-align:middle;">
-                                                                <input type="radio" name="easytier_mode" id="mode_simple" value="simple" onchange="on_mode_change();" checked style="vertical-align:middle;">
-                                                                <b style="vertical-align:middle;">简易向导模式</b> <span style="color:#a0aeb5; font-size:12px; vertical-align:middle;">(推荐，自动配置子网与对端)</span>
-                                                            </label>
-                                                            <label style="cursor:pointer; vertical-align:middle;">
-                                                                <input type="radio" name="easytier_mode" id="mode_custom" value="custom" onchange="on_mode_change();" style="vertical-align:middle;">
-                                                                <b style="vertical-align:middle;">高级 TOML 自定义</b> <span style="color:#a0aeb5; font-size:12px; vertical-align:middle;">(完整配置文件定制)</span>
-                                                            </label>
                                                         </td>
                                                     </tr>
                                                 </table>
@@ -891,13 +873,10 @@ function count_down_close() {
                                                             </td>
                                                         </tr>
                                                         <tr>
-                                                            <th style="vertical-align:top; padding-top:10px;">局域网网段代理 (子网转发)</th>
-                                                            <td style="white-space:normal;">
+                                                            <th>局域网网段代理 (子网转发)</th>
+                                                            <td>
                                                                 <input type="text" id="easytier_proxy_network" class="input_text" style="width:180px;" placeholder="例如: 192.168.50.0/24" />
-                                                                <span class="inline_highlight">💡 广播局域网网段，异地设备连入后可直连家中 NAS、台式机等所有内网设备</span>
-                                                                <div style="color:#ffcc00; margin-top:4px; font-size:11px; line-height:16px;">
-                                                                    ⚠️ <b>避坑防断网提示</b>：严禁与本路由器的上级 WAN/光猫网段（如 192.168.1.0/24）或对端其他节点广播的网段重叠！否则会导致默认网关路由被覆盖，造成全网断网并引发服务被系统终止。
-                                                                </div>
+                                                                <span class="inline_tip">广播本机内网网段供异地设备直连访问</span>
                                                             </td>
                                                         </tr>
                                                         <tr>
@@ -915,8 +894,8 @@ function count_down_close() {
                                                             <th style="vertical-align:top; padding-top:10px;">子网白名单 (Routes)</th>
                                                             <td style="white-space:normal;">
                                                                 <textarea id="easytier_route_whitelist" style="width:98%; height:60px; font-family:'Consolas',monospace; font-size:12px; line-height:16px;" class="input_text" placeholder="例如: 172.16.0.0/16&#10;10.3.0.0/16"></textarea>
-                                                                <div style="color:#00ffe4; margin-top:4px; font-size:11px; line-height:16px;">
-                                                                    💡 <b>白名单使用指南</b>：输入允许访问的远端子网 CIDR（每行一个或逗号隔开，如 <code>172.16.0.0/16</code>）。<b>不要填写</b>与本机 WAN 口/光猫冲突的网段（如 <code>192.168.1.0/24</code>），未填写的网段将自动被拦截，彻底消除路由劫持风险。
+                                                                <div style="color:#a0aeb5; margin-top:4px; font-size:11px;">
+                                                                    仅学习并写入上方指定的远端子网（每行一个），未指定的远端子网将被丢弃以避免网关冲突。
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -938,15 +917,6 @@ function count_down_close() {
                                                         </tr>
                                                     </table>
                                                 </div>
-
-                                                <!-- 高级自定义 TOML 切换提示 -->
-                                                <div id="custom_settings_group" style="margin-top:10px; display:none;">
-                                                    <div style="padding:16px; background:rgba(0,0,0,0.3); border-radius:4px; border:1px dashed #5a6a6f; text-align:center;">
-                                                        <span style="color:#00ffe4; font-size:14px; font-weight:bold;">当前已启用【高级 TOML 自定义模式】</span><br/>
-                                                        <span style="color:#a0aeb5; font-size:12px; margin-top:6px; display:inline-block;">请前往上方 “📝 高级 TOML 配置” 标签页编辑您的完整 TOML 配置文件。</span><br/>
-                                                        <button type="button" class="et_btn et_btn_primary" style="margin-top:12px;" onclick="switch_tab(2)">👉 立即前往编辑 TOML 配置</button>
-                                                    </div>
-                                                </div>
                                             </div>
 
                                             <!-- 页面 2: 高级 TOML 配置 (完全单行按钮，不换行，不截断) -->
@@ -960,7 +930,6 @@ function count_down_close() {
                                                             <div class="btn_toolbar">
                                                                 <button type="button" class="et_btn et_btn_primary" onclick="generate_toml_from_simple()">⚡ 从简易向导生成 TOML</button>
                                                                 <button type="button" class="et_btn et_btn_danger" onclick="clear_toml_content()">🗑️ 清空内容</button>
-                                                                <a href="https://easytier.cn/web/index.html#/config_generator" target="_blank" class="et_btn">↗ 官方配置生成器</a>
                                                             </div>
                                                             <textarea id="easytier_config_content" style="width: 98%; height: 380px; font-family:'Consolas','Courier New',monospace; font-size:12px; line-height:17px;" class="input_text" spellcheck="false" placeholder="# 请在此粘贴完整的 EasyTier TOML 配置文件..."></textarea>
                                                             <div style="margin-top:6px; color:#a0aeb5; font-size:11px;">

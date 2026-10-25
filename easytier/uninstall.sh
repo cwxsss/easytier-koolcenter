@@ -44,10 +44,14 @@ dbus remove softcenter_module_easytier_install
 dbus remove softcenter_module_easytier_description
 dbus remove softcenter_module_easytier_homeurl
 
+dbus remove easytier_plugin_version
+dbus remove easytier_core_version
 dbus remove easytier_version
 dbus remove easytier_enable
 dbus remove easytier_autostart
 dbus remove easytier_watchdog
+dbus remove easytier_watchdog_val
+dbus remove easytier_watchdog_unit
 dbus remove easytier_watchdog_interval
 dbus remove easytier_route_mode
 dbus remove easytier_route_whitelist

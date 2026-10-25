@@ -6,7 +6,9 @@
 # =======================================================
 
 MODULE="easytier"
-VERSION="2.6.4"
+PLUGIN_VERSION="1.1.0"
+CORE_VERSION="2.6.4"
+VERSION="$PLUGIN_VERSION"
 KS_DIR="/koolshare"
 
 source $KS_DIR/scripts/base.sh
@@ -141,16 +143,19 @@ register_dbus() {
     # 注册软件中心标准条目
     dbus set softcenter_module_easytier_name="easytier"
     dbus set softcenter_module_easytier_title="EasyTier"
-    dbus set softcenter_module_easytier_version="$VERSION"
+    dbus set softcenter_module_easytier_version="$PLUGIN_VERSION"
     dbus set softcenter_module_easytier_install="1"
     dbus set softcenter_module_easytier_description="简单、安全、去中心化的内网穿透 VPN 组网工具"
     dbus set softcenter_module_easytier_homeurl="Module_easytier.asp"
-    dbus set easytier_version="$VERSION"
+    dbus set easytier_plugin_version="$PLUGIN_VERSION"
+    dbus set easytier_core_version="$CORE_VERSION"
+    dbus set easytier_version="$CORE_VERSION"
 
     # 初始化默认值 (若未设置过)
     [ -z "$(dbus get easytier_autostart)" ] && dbus set easytier_autostart="1"
     [ -z "$(dbus get easytier_watchdog)" ] && dbus set easytier_watchdog="1"
-    [ -z "$(dbus get easytier_watchdog_interval)" ] && dbus set easytier_watchdog_interval="2"
+    [ -z "$(dbus get easytier_watchdog_val)" ] && dbus set easytier_watchdog_val="5"
+    [ -z "$(dbus get easytier_watchdog_unit)" ] && dbus set easytier_watchdog_unit="min"
     [ -z "$(dbus get easytier_route_mode)" ] && dbus set easytier_route_mode="all"
     [ -z "$(dbus get easytier_accept_routes)" ] && dbus set easytier_accept_routes="1"
     [ -z "$(dbus get easytier_mode)" ] && dbus set easytier_mode="simple"

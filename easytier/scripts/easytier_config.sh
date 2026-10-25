@@ -359,13 +359,37 @@ stop_easytier() {
 # 8. 看门狗守护与自动故障重启
 setup_watchdog() {
     local WD_ENABLE="${easytier_watchdog:-1}"
-    local WD_INTERVAL="${easytier_watchdog_interval:-2}"
-    [ -z "$WD_INTERVAL" ] && WD_INTERVAL=2
+    local WD_VAL="${easytier_watchdog_val:-5}"
+    local WD_UNIT="${easytier_watchdog_unit:-min}"
+
+    # 兼容老版 interval 变量
+    if [ -z "$easytier_watchdog_val" ] && [ -n "$easytier_watchdog_interval" ]; then
+        WD_VAL="$easytier_watchdog_interval"
+        WD_UNIT="min"
+    fi
+
+    # 合法性校验
+    case "$WD_VAL" in
+        ''|*[!0-9]*) WD_VAL=5 ;;
+    esac
+    [ "$WD_VAL" -le 0 ] && WD_VAL=5
+
+    local CRON_EXPR=""
+    local LOG_UNIT=""
+    if [ "$WD_UNIT" = "hour" ]; then
+        [ "$WD_VAL" -gt 23 ] && WD_VAL=23
+        CRON_EXPR="0 */$WD_VAL * * *"
+        LOG_UNIT="${WD_VAL} 小时"
+    else
+        [ "$WD_VAL" -gt 59 ] && WD_VAL=59
+        CRON_EXPR="*/$WD_VAL * * * *"
+        LOG_UNIT="${WD_VAL} 分钟"
+    fi
 
     cru d "$CRON_ID" >/dev/null 2>&1
     if [ "$WD_ENABLE" = "1" ]; then
-        cru a "$CRON_ID" "*/$WD_INTERVAL * * * * $KSROOT/scripts/easytier_config.sh watchdog"
-        echo_date "🛡️ [Watchdog 守护] 已激活进程看门狗 (检查周期: 每 ${WD_INTERVAL} 分钟)" >> $LOG_FILE
+        cru a "$CRON_ID" "$CRON_EXPR $KSROOT/scripts/easytier_config.sh watchdog"
+        echo_date "🛡️ [Watchdog 守护] 已激活进程看门狗 (检查周期: 每 ${LOG_UNIT})" >> $LOG_FILE
     fi
 }
 
